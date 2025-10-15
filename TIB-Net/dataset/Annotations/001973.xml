@@ -1,0 +1,26 @@
+<annotation>
+	<folder>0829_5JPEGImages</folder>
+	<filename>0829_5011.jpg</filename>
+	<path>C:\Users\lsq\Desktop\图片\0829_5JPEGImages\0829_5011.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>960</width>
+		<height>540</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>uav</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>457</xmin>
+			<ymin>233</ymin>
+			<xmax>484</xmax>
+			<ymax>254</ymax>
+		</bndbox>
+	</object>
+</annotation>

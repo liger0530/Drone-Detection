@@ -1,0 +1,26 @@
+<annotation>
+	<folder>JPEGImages</folder>
+	<filename>IMG_2539425.jpg</filename>
+	<path>H:\summer\uav\uav\windows_v1.7.0\data\video2\JPEGImages\IMG_2539425.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>1920</width>
+		<height>1080</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>uav</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>957</xmin>
+			<ymin>423</ymin>
+			<xmax>974</xmax>
+			<ymax>434</ymax>
+		</bndbox>
+	</object>
+</annotation>
