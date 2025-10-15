@@ -1,0 +1,26 @@
+<annotation>
+	<folder>IMG_2538JPEGImages</folder>
+	<filename>IMG_2538013.jpg</filename>
+	<path>C:\Users\lsq\Desktop\图片\IMG_2538JPEGImages\IMG_2538013.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>1920</width>
+		<height>1080</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>uav</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>1155</xmin>
+			<ymin>5</ymin>
+			<xmax>1201</xmax>
+			<ymax>41</ymax>
+		</bndbox>
+	</object>
+</annotation>

@@ -1,0 +1,26 @@
+<annotation>
+	<folder>OutputPics</folder>
+	<filename>192.168.1.64_01_20190823103226285_20747.jpg</filename>
+	<path>C:\Users\lsq\Desktop\图片\OutputPics\192.168.1.64_01_20190823103226285_20747.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>1920</width>
+		<height>1080</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>uav</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>49</xmin>
+			<ymin>1</ymin>
+			<xmax>85</xmax>
+			<ymax>28</ymax>
+		</bndbox>
+	</object>
+</annotation>
