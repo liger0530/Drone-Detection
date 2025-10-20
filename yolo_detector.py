@@ -115,15 +115,6 @@ class YOLODetector:
     def get_confidence_threshold(self):
         return self.confidence_threshold
 
-    def _is_drone_class(self, class_name):
-        drone_keywords = [
-            'drone', 'uav', 'quadcopter', 'aircraft', 'helicopter',
-            'multirotor', 'copter', 'flying', 'aerial'
-        ]
-
-        class_name = class_name.lower()
-        return any(keyword in class_name for keyword in drone_keywords)
-
     def get_fps_info(self):
         if self.model:
             return self.model.predictor.speed if hasattr(self.model, 'predictor') else None
