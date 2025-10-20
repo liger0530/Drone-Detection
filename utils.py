@@ -36,14 +36,8 @@ def draw_detections(image: np.ndarray, detections: List[Dict], depth_image: np.n
         color = get_class_color(detection['class_id'])
         cv2.rectangle(annotated_image, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color, 2)
 
-        # Prepare label text
+        # Prepare label text (without distance)
         label = f"{class_name}: {confidence:.2f}"
-
-        # Add distance if available
-        if depth_image is not None and camera_manager is not None:
-            distance = camera_manager.get_distance(center[0], center[1], depth_image)
-            if distance is not None:
-                label += f" | {distance:.2f}m"
 
         # Draw label background
         label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
@@ -57,8 +51,37 @@ def draw_detections(image: np.ndarray, detections: List[Dict], depth_image: np.n
                    (bbox[0], bbox[1] - 5),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-        # Draw center point
-        cv2.circle(annotated_image, center, 5, color, -1)
+        # Draw center point (larger and more visible)
+        cv2.circle(annotated_image, center, 8, color, -1)  # Filled circle
+        cv2.circle(annotated_image, center, 10, (255, 255, 255), 2)  # White outline
+
+        # Draw center coordinates below the box (without distance)
+        center_label = f"Center: ({center[0]}, {center[1]})"
+
+        center_label_size = cv2.getTextSize(center_label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
+        center_y = bbox[3] + 20  # Position below the box
+
+        # Draw center label background
+        cv2.rectangle(annotated_image,
+                     (bbox[0], center_y - center_label_size[1] - 5),
+                     (bbox[0] + center_label_size[0], center_y + 5),
+                     (0, 0, 0), -1)
+
+        # Draw center label text
+        cv2.putText(annotated_image, center_label,
+                   (bbox[0], center_y),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+
+        # Draw crosshair at center
+        crosshair_size = 15
+        cv2.line(annotated_image,
+                (center[0] - crosshair_size, center[1]),
+                (center[0] + crosshair_size, center[1]),
+                (0, 255, 255), 2)
+        cv2.line(annotated_image,
+                (center[0], center[1] - crosshair_size),
+                (center[0], center[1] + crosshair_size),
+                (0, 255, 255), 2)
 
     return annotated_image
 

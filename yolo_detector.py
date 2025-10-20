@@ -3,13 +3,15 @@ import cv2
 import numpy as np
 import torch
 import logging
+from pathlib import Path
 
 class YOLODetector:
-    def __init__(self, model_path='yolo11n.pt', confidence_threshold=0.5, device='auto'):
+    def __init__(self, model_path='models/weights/best.pt', confidence_threshold=0.5, device='auto'):
         self.confidence_threshold = confidence_threshold
         self.device = device
         self.model = None
         self.class_names = None
+        self.model_path = model_path
 
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
@@ -19,8 +21,25 @@ class YOLODetector:
 
     def load_model(self, model_path):
         try:
+            # Check if model file exists
+            model_file = Path(model_path)
+            if not model_file.exists():
+                # Try common locations for trained models
+                alternative_paths = [
+                    Path('models/weights/best.pt'),
+                    Path('models/weights/last.pt'),
+                    Path(model_path)
+                ]
+
+                for alt_path in alternative_paths:
+                    if alt_path.exists():
+                        model_path = str(alt_path)
+                        self.logger.info(f"Using model from: {model_path}")
+                        break
+
             # Load YOLO model
             self.model = YOLO(model_path)
+            self.model_path = model_path
 
             # Set device
             if self.device == 'auto':
@@ -32,7 +51,9 @@ class YOLODetector:
             self.class_names = self.model.names
 
             self.logger.info(f"YOLO model loaded successfully on {self.device}")
+            self.logger.info(f"Model path: {model_path}")
             self.logger.info(f"Model classes: {list(self.class_names.values())}")
+            self.logger.info(f"Confidence threshold: {self.confidence_threshold}")
 
             return True
 
@@ -83,56 +104,16 @@ class YOLODetector:
             self.logger.error(f"Error during detection: {e}")
             return []
 
-    def filter_drone_classes(self, detections):
-        # Filter for drone-related classes
-        # You can customize this list based on your specific needs
-        drone_classes = ['drone']  # Add more classes as needed
-
-        filtered_detections = []
-        for detection in detections:
-            if detection['class_name'].lower() in [cls.lower() for cls in drone_classes]:
-                filtered_detections.append(detection)
-
-        return filtered_detections
-
     def set_confidence_threshold(self, threshold):
+        if not 0.0 <= threshold <= 1.0:
+            self.logger.warning(f"Invalid threshold {threshold}. Must be between 0.0 and 1.0")
+            return
+
         self.confidence_threshold = threshold
         self.logger.info(f"Confidence threshold set to {threshold}")
 
-    def detect_drone_simple(self, image):
-        if self.model is None:
-            return None
-
-        try:
-            # Run inference
-            results = self.model(image, conf=self.confidence_threshold, verbose=False)
-
-            # Look for drone detections
-            for r in results:
-                boxes = r.boxes
-                if boxes is not None:
-                    for box in boxes:
-                        # Get class info
-                        class_id = int(box.cls[0].cpu().numpy())
-                        class_name = self.class_names[class_id].lower()
-
-                        # Check if it's a drone-related object
-                        if self._is_drone_class(class_name):
-                            # Get bounding box coordinates
-                            x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-
-                            # Calculate center point
-                            center_x = int((x1 + x2) / 2)
-                            center_y = int((y1 + y2) / 2)
-
-                            return center_x, center_y
-
-            # No drone found
-            return None
-
-        except Exception as e:
-            self.logger.error(f"Error during simple drone detection: {e}")
-            return None
+    def get_confidence_threshold(self):
+        return self.confidence_threshold
 
     def _is_drone_class(self, class_name):
         drone_keywords = [
