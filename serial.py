@@ -9,6 +9,11 @@ from yolo_detector import YOLODetector
 from utils import FPSCounter, draw_detections, draw_fps, draw_detection_stats
 
 # ==================== CONFIGURATION ====================
+# Input Source Configuration
+RUN_ON_TEST = True                     # Set to True to run on test video, False for RealSense camera
+TEST_VIDEO_PATH = "data/test/test_720p.mp4"  # Path to test video file (used when RUN_ON_TEST=True)
+VIDEO_PLAYBACK_FPS = 30                 # Fixed FPS for video playback (set to 0 to use video's native FPS)
+
 # Model Configuration
 MODEL_PATH = "models/weights/best.pt"
 
@@ -25,7 +30,7 @@ SERIAL_PORT = "COM3"                 # Serial port for ESP32
 BAUD_RATE = 115200                   # Serial baud rate
 SEND_HZ = 30                         # Data output rate (Hz)
 ENABLE_SMOOTHING = True              # Enable EMA smoothing filter
-SMOOTH_ALPHA = 0.25                  # Smoothing factor (lower = smoother)
+SMOOTH_ALPHA = 0.25                  # Smoothing facto--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------r-------------- (lower = smoother)
 
 # Display Configuration
 SHOW_DISPLAY = True                  # Show visual feedback window
@@ -202,7 +207,10 @@ def draw_visualization(frame, detection, frame_center, smoothed_coords, fps):
 def main():
     print("=" * 70)
     print("  DRONE TRACKING DATA EXTRACTOR")
-    print("  For ESP32 Gimbal Motor Control (RealSense Camera)")
+    if RUN_ON_TEST:
+        print(f"  For ESP32 Gimbal Motor Control (Test Video Mode)")
+    else:
+        print(f"  For ESP32 Gimbal Motor Control (RealSense Camera)")
     print("=" * 70)
     print()
 
@@ -220,19 +228,50 @@ def main():
         logger.info(f"YOLO detector initialized with confidence threshold: {MIN_CONFIDENCE}")
     except Exception as e:
         print(f"[ERROR] Failed to load YOLO model: {e}")
-        print("[TIP] Make sure model file exists at: {MODEL_PATH}")
+        print(f"[TIP] Make sure model file exists at: {MODEL_PATH}")
         return
 
-    # Initialize RealSense camera
-    logger.info(f"Initializing RealSense camera: {CAMERA_WIDTH}x{CAMERA_HEIGHT} @ {CAMERA_FPS}fps")
-    camera = RealSenseCamera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT, fps=CAMERA_FPS)
+    # Initialize input source (camera or video file)
+    camera = None
+    video_cap = None
+    video_fps = 0.0
 
-    if not camera.initialize():
-        print(f"[ERROR] Failed to initialize RealSense camera")
-        print("[TIP] Make sure RealSense camera is connected")
-        return
+    if RUN_ON_TEST:
+        # Initialize video capture from file
+        logger.info(f"Loading test video: {TEST_VIDEO_PATH}")
+        video_cap = cv2.VideoCapture(TEST_VIDEO_PATH)
 
-    logger.info(f"Camera resolution: {CAMERA_WIDTH}x{CAMERA_HEIGHT}")
+        if not video_cap.isOpened():
+            print(f"[ERROR] Failed to open test video: {TEST_VIDEO_PATH}")
+            print("[TIP] Make sure the video file exists at the specified path")
+            return
+
+        # Get video properties
+        video_width = int(video_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        video_height = int(video_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        video_native_fps = video_cap.get(cv2.CAP_PROP_FPS)
+        video_frame_count = int(video_cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        # Use fixed FPS if configured, otherwise use video's native FPS
+        if VIDEO_PLAYBACK_FPS > 0:
+            video_fps = VIDEO_PLAYBACK_FPS
+            logger.info(f"Video loaded: {video_width}x{video_height} @ {video_native_fps:.1f}fps (native), "
+                       f"will play at {video_fps:.1f}fps (configured)")
+        else:
+            video_fps = video_native_fps
+            logger.info(f"Video loaded: {video_width}x{video_height} @ {video_fps:.1f}fps, {video_frame_count} frames")
+    else:
+        # Initialize RealSense camera
+        logger.info(f"Initializing RealSense camera: {CAMERA_WIDTH}x{CAMERA_HEIGHT} @ {CAMERA_FPS}fps")
+
+        camera = RealSenseCamera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT, fps=CAMERA_FPS)
+
+        if not camera.initialize():
+            print(f"[ERROR] Failed to initialize RealSense camera")
+            print("[TIP] Make sure RealSense camera is connected")
+            return
+
+        logger.info(f"Camera resolution: {CAMERA_WIDTH}x{CAMERA_HEIGHT}")
 
     # Initialize serial connection
     serial_conn = SerialConnection(SERIAL_PORT, BAUD_RATE)
@@ -247,8 +286,18 @@ def main():
     send_period = 1.0 / SEND_HZ
     next_send_time = time.perf_counter()
 
+    # Video playback timing (for test mode)
+    if RUN_ON_TEST and video_fps > 0:
+        frame_period = 1.0 / video_fps  # Time between frames
+        next_frame_time = time.perf_counter()
+    else:
+        frame_period = 0.0
+        next_frame_time = 0.0
+
     print()
     print("[INFO] System ready!")
+    if RUN_ON_TEST and video_fps > 0:
+        print(f"[INFO] Video playback FPS: {video_fps:.1f}")
     print(f"[INFO] Output format: found,dx,dy,confidence")
     print(f"[INFO] Update rate: {SEND_HZ} Hz")
     print("-" * 70)
@@ -258,17 +307,41 @@ def main():
 
     try:
         while True:
-            # Get frame from RealSense camera
-            color_frame, depth_frame = camera.get_frame()
+            # Video playback timing control (throttle to match video FPS)
+            if RUN_ON_TEST and video_fps > 0:
+                current_time = time.perf_counter()
+                time_to_wait = next_frame_time - current_time
 
-            if color_frame is None:
-                logger.warning("No frame received from camera")
-                continue
+                # If we're ahead of schedule, wait
+                if time_to_wait > 0:
+                    time.sleep(time_to_wait)
+
+                # Schedule next frame
+                next_frame_time = time.perf_counter() + frame_period
+
+            # Get frame from input source
+            if RUN_ON_TEST:
+                # Read frame from video file
+                ret, color_frame = video_cap.read()
+
+                if not ret:
+                    print("\n[INFO] End of video reached")
+                    break
+
+                depth_frame = None  # No depth data from video file
+            else:
+                # Get frame from RealSense camera
+                color_frame, depth_frame = camera.get_frame()
+
+                if color_frame is None:
+                    logger.warning("No frame received from camera")
+                    continue
 
             # Update FPS counter
             fps_counter.update()
             current_fps = fps_counter.get_fps()
 
+            # Get frame dimensions and calculate center
             h, w = color_frame.shape[:2]
             center_x = w / 2.0
             center_y = h / 2.0
@@ -338,8 +411,10 @@ def main():
                                           (center_x, center_y),
                                           smoothed_coords, current_fps)
 
-                cv2.imshow("Drone Tracker - Data Output (RealSense)", annotated_frame)
+                window_title = "Drone Tracker - Data Output (Test Video)" if RUN_ON_TEST else "Drone Tracker - Data Output (RealSense)"
+                cv2.imshow(window_title, annotated_frame)
 
+                # Minimal delay for GUI event handling (timing is controlled by sleep above)
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord('q'):
                     print("\n[INFO] Quit command received")
@@ -368,8 +443,12 @@ def main():
         serial_conn.send(final_output)
         sys.stdout.write(final_output)
 
-        # Stop camera
-        camera.stop()
+        # Stop input source
+        if RUN_ON_TEST and video_cap is not None:
+            video_cap.release()
+        elif camera is not None:
+            camera.stop()
+
         cv2.destroyAllWindows()
         serial_conn.close()
 
