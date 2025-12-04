@@ -113,7 +113,7 @@ class DroneYOLOTrainer:
         self.logger.info("Training directories setup complete")
 
     def train(self, dataset_path, epochs=100, batch_size=16, patience=50, save_period=10,
-              resume=False, workers=4, cache=None, amp=True, single_cls=False):
+              resume=False, workers=4, cache=None, amp=True, single_cls=False, rect=False):
         """
         Train the YOLO model on drone detection dataset.
 
@@ -199,7 +199,8 @@ class DroneYOLOTrainer:
                 'mixup': 0.0,
                 'copy_paste': 0.0,
                 'amp': amp,  # Configurable AMP
-                'single_cls': single_cls  # Single-class optimization
+                'single_cls': single_cls,  # Single-class optimization
+                'rect': rect,  # Rectangular training
             }
 
             # Add cache if specified
@@ -274,8 +275,8 @@ def parse_args():
                         help='Save checkpoint every N epochs (default: 10)')
 
     # Dataset
-    parser.add_argument('--dataset', type=str, default='data/',
-                        help='Path to dataset directory (default: data/)')
+    parser.add_argument('--dataset', type=str, default='data/tib/',
+                        help='Path to dataset directory (default: data/tib/)')
 
     # Resume training
     parser.add_argument('--resume', action='store_true',
@@ -300,6 +301,8 @@ def parse_args():
                         help='Disable AMP (uses more memory but may be more stable)')
     parser.add_argument('--single-cls', action='store_true',
                         help='Train as single-class (slight memory reduction)')
+    parser.add_argument('--rect', action='store_true',
+                        help='Enable rectangular training (optimized for non-square images)')
     
     parser.add_argument('--skip-export', action='store_true',
                         help='Skip ONNX export after training')
@@ -345,7 +348,7 @@ def main():
     # Initialize trainer
     trainer = DroneYOLOTrainer(
         model_size=args.model_size,
-        input_size=(args.width, args.height),
+        input_size=(args.height, args.width), # YOLO expects [h, w]
         resume_from=args.resume_from
     )
 
@@ -362,7 +365,8 @@ def main():
             workers=args.workers,
             cache=args.cache,
             amp=args.amp,
-            single_cls=args.single_cls
+            single_cls=args.single_cls,
+            rect=args.rect
         )
 
         # Find the best model in the runs directory

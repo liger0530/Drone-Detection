@@ -1,8 +1,6 @@
-# Drone Detection Dataset
-path: c:\Users\leeyo\Downloads\Code\Projects\Drone-Detection\data
+path: C:\Users\user\Downloads\Code\Projects\Drone-Detection\data
 train: images/train
 val: images/val
-
-# Classes
-nc: 1
-names: ['uav']
+test: images/test
+names:
+  0: drone
